@@ -24,11 +24,11 @@ enum REQUEST {
 typedef struct terminal_mgmt_message
 {
 	MESSAGE_HEADER_STRUCT HEADER;
-	REQUEST               REQUEST;
+	enum REQUEST               RQST;
 	uint32_t              STREAM;
 	bool                  RETURN;
 	void *                DATA;
-};
+} TERMINAL_MGMT_MESSAGE, * TERMINAL_MGMT_MESSAGE_PTR;
 
 /* This structure contains a data field and a message header structure */
 typedef struct terminal_message

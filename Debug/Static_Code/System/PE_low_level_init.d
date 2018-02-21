@@ -76,7 +76,6 @@ Static_Code/System/PE_low_level_init.o: \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/MainTask.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/terminal.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/TerminalHandler.h \
- C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/board.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/pin_init.h
 
@@ -231,8 +230,6 @@ C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/MainTask.h:
 C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/terminal.h:
 
 C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/TerminalHandler.h:
-
-C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h:
 
 C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/board.h:
 

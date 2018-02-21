@@ -74,7 +74,6 @@ Generated_Code/Cpu.o: ../Generated_Code/Cpu.c ../Generated_Code/Cpu.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/MainTask.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/terminal.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/TerminalHandler.h \
- C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Sources/rtos_main_task.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Sources/os_tasks.h
 
@@ -231,8 +230,6 @@ C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/MainTask.h:
 C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/terminal.h:
 
 C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/TerminalHandler.h:
-
-C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h:
 
 C:/Users/mtayler/workspace.kds/serial_terminal/Sources/rtos_main_task.h:
 

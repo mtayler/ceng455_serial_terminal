@@ -75,12 +75,13 @@ Sources/Events.o: ../Sources/Events.c \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/MainTask.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/terminal.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/TerminalHandler.h \
- C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h \
  ../Sources/rtos_main_task.h ../Sources/os_tasks.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx_stdlib/source/include/stdio.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx_stdlib/source/include/std_prv.h \
  C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/nio/fcntl.h \
- C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/nio/nio.h
+ C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/nio/nio.h \
+ ../Sources/messaging.h \
+ C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h
 
 C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/Cpu.h:
 
@@ -234,8 +235,6 @@ C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/terminal.h:
 
 C:/Users/mtayler/workspace.kds/serial_terminal/Generated_Code/TerminalHandler.h:
 
-C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h:
-
 ../Sources/rtos_main_task.h:
 
 ../Sources/os_tasks.h:
@@ -247,3 +246,7 @@ C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx_stdlib/source/in
 C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/nio/fcntl.h:
 
 C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/nio/nio.h:
+
+../Sources/messaging.h:
+
+C:/Users/mtayler/workspace.kds/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h:

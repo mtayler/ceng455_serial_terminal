@@ -10,6 +10,11 @@
 
 #include "messaging.h"
 
+typedef struct output_line {
+	QUEUE_ELEMENT_STRUCT HEADER;
+	char                 LINE[100];
+} OUTPUT_LINE, * OUTPUT_LINE_PTR;
+
 _queue_id OpenW(void) {
 	TERMINAL_MESSAGE_PTR msg_ptr = (TERMINAL_MESSAGE_PTR)_msg_alloc(terminal_message_pool);
 	if (msg_ptr == NULL) {

@@ -58,9 +58,14 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 {
 	printf("Starting TerminalHandler_task\n");
 	TERMINAL_MESSAGE_PTR msg_ptr;
+	TERMINAL_MGMT_MESSAGE_PTR mgmt_msg_ptr;
 	_queue_id terminal_handler_qid;
+	_queue_id terminal_mgmt_qid;
 	OUTPUT_BUFFER_PTR output = init_output_ptr();
 	uint8_t buffer_index = 0;
+
+	QUEUE_STRUCT output_queue;
+	_queue_init(&output_queue);
 
 	uint16_t opened_write = 0;
 
@@ -92,37 +97,50 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 	while (1) {
 #endif
 		/* Handle incoming messages */
-		msg_ptr = _msgq_poll(terminal_mgmt_qid, 0);
+		mgmt_msg_ptr = _msgq_poll(terminal_mgmt_qid);
 
 		// If there's a management message
-		if (msg_ptr) {
+		if (mgmt_msg_ptr) {
 
-			switch (msg_ptr->REQUEST) {
+			switch (mgmt_msg_ptr->RQST) {
 				case OpenW:
 					if (! opened_write) {
-						opened_write = msg_ptr->STREAM;
+						opened_write = mgmt_msg_ptr->STREAM;
 					} else {
-						msg_ptr-> RETURN = FALSE;
+						mgmt_msg_ptr-> RETURN = FALSE;
 					}
 					break;
 				case PutLine:
-					if (msg_ptr->STREAM == opened_write) {
-						// Put the line
+					if (mgmt_msg_ptr->STREAM == opened_write) {
+						bool queued = _queue_enqueue(&output_queue,
+								(OUTPUT_LINE)mgmt_msg_ptr->DATA);
+						if (queued) {
+							mgmt_msg_ptr->RETURN = TRUE;
+						} else {
+							mgmt_msg_ptr->RETURN = FALSE;
+						}
 					} else {
-						msg_ptr->RETURN = TRUE;
+						mgmt_msg_ptr->RETURN = TRUE;
 					}
 					break;
 				case Close:
 					opened_write = 0;
-					msg_ptr->RETURN = TRUE;
+					mgmt_msg_ptr->RETURN = TRUE;
 					break;
 				default:
-					msg_ptr->RETURN = FALSE;
+					mgmt_msg_ptr->RETURN = FALSE;
 			}
-			_msgq_send(msg_ptr);
+			mgmt_msg_ptr->HEADER.TARGET_QID = mgmt_mgs_ptr->HEADER.SOURCE_QID;
+			mgmt_msg_ptr->HEADER.SOURCE_QID = terminal_mgmt_qid;
+			_msgq_send(mgmt_msg_ptr);
 		}
 
-		msg_ptr = _msgq_poll(terminal_handler_qid, 0);
+		OUTPUT_LINE_PTR incoming_line = _queue_dequeue(output_queue);
+		if (incoming_line != NULL) {
+			UART_DRV_SendDataBlocking(terminal_IDX, incoming_line->LINE, sizeof(incoming_line->LINE), 1500);
+		}
+
+		msg_ptr = _msgq_poll(terminal_handler_qid);
 		if (! msg_ptr) {
 			continue;
 		}

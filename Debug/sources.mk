@@ -61,4 +61,5 @@ SDK/platform/devices \
 SDK/platform/devices/MK64F12/startup \
 SDK/platform/devices/MK64F12/startup/gcc \
 Generated_Code \
+.metadata/.plugins/org.eclipse.cdt.make.core \
 
