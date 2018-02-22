@@ -88,7 +88,7 @@ all: serial_terminal.elf secondary-outputs
 serial_terminal.elf: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross ARM C++ Linker'
-	arm-none-eabi-g++ -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O0 -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -Wall  -g3 -T "C:/Users/mtayler/workspace.kds/serial_terminal/Project_Settings/Linker_Files/ProcessorExpert.ld" -Xlinker --gc-sections -L"C:/Users/mtayler/workspace.kds/serial_terminal/Project_Settings/Linker_Files" -Wl,-Map,"serial_terminal.map" -lgcc -lc -lsupc++ -lm -specs=nosys.specs -nostartfiles -Xlinker -z -Xlinker muldefs -Xlinker -static -o "serial_terminal.elf" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-none-eabi-g++ -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O0 -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -Wall  -g3 -T "/Users/mtayler/Documents/ceng455/serial_terminal/Project_Settings/Linker_Files/ProcessorExpert.ld" -Xlinker --gc-sections -L"/Users/mtayler/Documents/ceng455/serial_terminal/Project_Settings/Linker_Files" -Wl,-Map,"serial_terminal.map" -lgcc -lc -lsupc++ -lm -specs=nosys.specs -nostartfiles -Xlinker -z -Xlinker muldefs -Xlinker -static -o "serial_terminal.elf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

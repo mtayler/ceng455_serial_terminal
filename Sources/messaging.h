@@ -14,21 +14,20 @@
 #define TERMINAL_HANDLER_QID (2)
 
 enum REQUEST {
-	OpenR = 0,
-	GetLine,
-	OpenW,
-	PutLine,
-	Close
+	R_OpenR = 0,
+	R_GetLine,
+	R_OpenW,
+	R_PutLine,
+	R_Close
 };
 
 typedef struct terminal_mgmt_message
 {
 	MESSAGE_HEADER_STRUCT HEADER;
-	enum REQUEST               RQST;
-	uint32_t              STREAM;
+	enum REQUEST          RQST;
 	bool                  RETURN;
 	void *                DATA;
-} TERMINAL_MGMT_MESSAGE, * TERMINAL_MGMT_MESSAGE_PTR;
+} TERMINAL_MGMT_MESSAGE, * TERMINAL_MGMT_PTR;
 
 /* This structure contains a data field and a message header structure */
 typedef struct terminal_message
@@ -38,5 +37,6 @@ typedef struct terminal_message
 } TERMINAL_MESSAGE, * TERMINAL_MESSAGE_PTR;
 
 _pool_id terminal_message_pool;
+_pool_id terminal_mgmt_pool;
 
 #endif /* SOURCES_MESSAGING_H_ */
