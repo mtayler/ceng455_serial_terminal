@@ -10,10 +10,10 @@ typedef struct output
 } OUTPUT_BUFFER_STRUCT, * OUTPUT_BUFFER_PTR;
 
 #define CODE_clearline ((unsigned char*)"\033[2K")
-#define CODE_clearline_home ((unsigned char*)"\033[2K\033[H")
+#define CODE_clearline_home ((unsigned char*)"\033[2K\r")
 #define CODE_clearterm ((unsigned char*)"\033[2J")
 #define CODE_clearterm_home ((unsigned char*)"\033[2J\r")
-#define CODE_nextline ((unsigned char*)"\n")
+#define CODE_nextline ((unsigned char*)"\n\r")
 
 OUTPUT_BUFFER_PTR init_output_ptr() {
 	static OUTPUT_BUFFER_STRUCT s = {

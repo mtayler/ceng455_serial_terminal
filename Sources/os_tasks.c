@@ -62,7 +62,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 {
 	printf("Starting TerminalHandler_task\n");
 	TERMINAL_MESSAGE_PTR msg_ptr;
-	TERMINAL_MGMT_PTR mgmt_msg_ptr;
+	TERMINAL_MGMT_MESSAGE_PTR mgmt_msg_ptr;
 	_queue_id terminal_handler_qid;
 	_queue_id terminal_mgmt_qid;
 	OUTPUT_BUFFER_PTR output_buffer = init_output_ptr();
@@ -72,18 +72,18 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 	_queue_init(&output_queue, 0);
 
 	vec_stream_t read_queue;        // list of streams opened for read
-	_queue_id opened_write = 0;     // task id opened for write
+	_task_id opened_write = 0;     // task id opened for write
 
 	vec_stream_init(read_queue);
 
 	terminal_mgmt_qid = _msgq_open(TERMINAL_MGMT_QID, 0);
 	if (! terminal_mgmt_qid) {
-		printf("\nCould not open terminal handler message queue\n");
+		printf("\nCould not open terminal handler mgmt message queue\n");
 		_task_block();
 	}
 	terminal_mgmt_pool = _msgpool_create(sizeof(TERMINAL_MGMT_MESSAGE), 1, 0, 0);
 	if (! terminal_mgmt_pool) {
-		printf("\nCould not create terminal message pool\n");
+		printf("\nCould not create terminal mgmt pool\n");
 		_task_block();
 	}
 
@@ -100,7 +100,6 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 		_task_block();
 	}
 
-	UART_DRV_SendDataBlocking(terminal_IDX, CODE_clearterm_home, sizeof(CODE_clearterm_home), 1000);
 
 #ifdef PEX_USE_RTOS
 	while (1) {
@@ -110,21 +109,21 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 
 		// If there's a management message
 		if (mgmt_msg_ptr) {
-
+			printf("[TerminalHandler]: Received MGMT message: %s\n", R_request_to_str(mgmt_msg_ptr->RQST));
 			switch (mgmt_msg_ptr->RQST) {
 				case R_OpenW: {
 					if (! opened_write) {                           // Set the write task and return our input queue id
-						opened_write = mgmt_msg_ptr->HEADER.SOURCE_QID;
+						opened_write = mgmt_msg_ptr->TASK_ID;
 						mgmt_msg_ptr->RETURN = TRUE;
-						mgmt_msg_ptr->HEADER.SOURCE_QID = terminal_mgmt_qid;
+						mgmt_msg_ptr->DATA = &terminal_mgmt_qid;
 					} else {                                        // Already opened for write, do nothing
 						mgmt_msg_ptr->RETURN = FALSE;
-						mgmt_msg_ptr->HEADER.SOURCE_QID = 0;
+						mgmt_msg_ptr->DATA = 0;
 					}
 					break;
 				}
 				case R_PutLine: {
-					if (mgmt_msg_ptr->HEADER.SOURCE_QID == opened_write) {     // If the message source has opened for write
+					if (mgmt_msg_ptr->TASK_ID == opened_write) {     // If the message source has opened for write
 						OUTPUT_LINE_PTR outline = malloc(sizeof(OUTPUT_LINE));
 						strncpy(outline->LINE, (char*)mgmt_msg_ptr->DATA, sizeof(outline->LINE));
 						bool queued = _queue_enqueue(&output_queue, (QUEUE_ELEMENT_STRUCT_PTR)outline);
@@ -144,16 +143,37 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 					bool contained = FALSE;
 					for (size_t i=0; i < vec_stream_size(read_queue); i++) {
 						if (vec_stream_get(read_queue, i) == read_stream) {
+							mgmt_msg_ptr->RETURN = FALSE;
 							contained = TRUE;
 							break;
 						}
 					}
 					if (! contained) {
 						vec_stream_append(read_queue, read_stream);
+						mgmt_msg_ptr->RETURN = TRUE;
 					}
+					break;
+				}
+				case R_GetLine: {
+					// Check if sending Queue is registered for read
+					// If registered don't send anything and keep call blocking
+					// until line entered. Otherwise return RETURN = FALSE
+					bool authorized = FALSE;
+					for (size_t i=0; i < vec_stream_size(read_queue); i++) {
+						if (mgmt_msg_ptr->HEADER.SOURCE_QID == vec_stream_get(read_queue, i)) {
+							authorized = TRUE;
+							break;
+						}
+					}
+					if (! authorized) {
+						mgmt_msg_ptr->RETURN = FALSE;
+					} else {
+						mgmt_msg_ptr->RETURN = TRUE;
+					}
+					break;
 				}
 				case R_Close: {
-					if (mgmt_msg_ptr->HEADER.SOURCE_QID == opened_write) {
+					if (*((_task_id*)mgmt_msg_ptr->DATA) == opened_write) {
 						opened_write = 0;
 					}
 					// Remove stream from read vector if exists
@@ -176,51 +196,55 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 
 		OUTPUT_LINE_PTR queued_line = (OUTPUT_LINE_PTR)_queue_dequeue(&output_queue);
 		if (queued_line) {
-			UART_DRV_SendDataBlocking(terminal_IDX, (unsigned char*)queued_line->LINE, sizeof(queued_line->LINE), 1500);
+			printf("%s\n", queued_line->LINE);
+			UART_DRV_SendDataBlocking(terminal_IDX, (unsigned char*)queued_line->LINE, sizeof(queued_line->LINE), 2000);
 			free(queued_line);
-		}
-
-		msg_ptr = _msgq_poll(terminal_handler_qid);
-		if (! msg_ptr) {
+			UART_DRV_SendDataBlocking(terminal_IDX, CODE_nextline, sizeof(CODE_nextline), 1000);
 			continue;
 		}
 
-		char message = *(msg_ptr->DATA);
-		_msg_free(msg_ptr);
+		msg_ptr = _msgq_poll(terminal_handler_qid);
+		if (msg_ptr) {
+			char message = *(msg_ptr->DATA);
+			_msg_free(msg_ptr);
 
-		printf("Incoming key: 0x%x\n", message);
-
-		/* Handle input */
-		if (message >= 32 && message <= 126) { // printable characters
-			output_buffer->buffer[buffer_index++] = message;
-		} else if (message == '\b') { // Backspace and ^H
-			if (buffer_index > 0) { buffer_index -= 1; };
-			output_buffer->buffer[buffer_index] = '\0';
-		} else if (message == '\r') { // new line
-			UART_DRV_SendDataBlocking(terminal_IDX, CODE_nextline, sizeof(CODE_nextline), BLOCK_TIMEOUT);
-			for (size_t i=0; i < vec_stream_size(read_queue); i++) {
-				TERMINAL_MGMT_PTR line_msg_ptr = (TERMINAL_MGMT_PTR)_msg_alloc(terminal_mgmt_pool);
-				line_msg_ptr->HEADER.TARGET_QID = vec_stream_get(read_queue, i);
-				line_msg_ptr->HEADER.SOURCE_QID = terminal_mgmt_qid;
-				strcpy(line_msg_ptr->DATA, output_buffer->buffer);
-				_msgq_send(line_msg_ptr);
-			}
-		} else if (message == '\x17') {  // ^W erase word
-			while (buffer_index > 0 && output_buffer->buffer[--buffer_index] != ' ') {
+			/* Handle input */
+			if (message >= 32 && message <= 126) { // printable characters
+				output_buffer->buffer[buffer_index++] = message;
+			} else if (message == '\b' || message == '\x33') { // Backspace and ^H (and Delete)
+				if (buffer_index > 0) { buffer_index -= 1; };
 				output_buffer->buffer[buffer_index] = '\0';
-			}
-			output_buffer->buffer[buffer_index] = '\0';
-		} // else ignore
+			} else if (message == '\r') { // new line
+				UART_DRV_SendDataBlocking(terminal_IDX, CODE_nextline, sizeof(CODE_nextline), BLOCK_TIMEOUT);
+				// Iterate over list of queues opened for read and send line
+				for (size_t i=0; i < vec_stream_size(read_queue); i++) {
+					TERMINAL_MGMT_MESSAGE_PTR line_msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
+					line_msg_ptr->HEADER.TARGET_QID = vec_stream_get(read_queue, i);
+					line_msg_ptr->HEADER.SOURCE_QID = terminal_mgmt_qid;
+					line_msg_ptr->RQST = R_SentLine;
+					char* line = malloc(sizeof(char[LINE_LENGTH])); // make new string to send address in message
+					strcpy(line, output_buffer->buffer);
+					line_msg_ptr->DATA = line;
+					_msgq_send(line_msg_ptr);
+				}
+			} else if (message == '\x17') {  // ^W erase word
+				while (buffer_index > 0 && output_buffer->buffer[--buffer_index] != ' ') {
+					output_buffer->buffer[buffer_index] = '\0';
+				}
+				output_buffer->buffer[buffer_index] = '\0';
+			} // else ignore
 
-		if (message == '\x15' || message == '\r') { // erase line (^U or newline)
-			while (buffer_index > 0) {
-				output_buffer->buffer[--buffer_index] = '\0';
+			if (message == '\x15' || message == '\r') { // erase line (^U or newline)
+				while (buffer_index > 0) {
+					output_buffer->buffer[--buffer_index] = '\0';
+				}
 			}
+			UART_DRV_SendData(terminal_IDX, (unsigned char*)output_buffer->clear, sizeof(OUTPUT_BUFFER_STRUCT));
+		} else {
+			// Give time for other tasks to run if there's no incoming text
+			_time_delay(10);
 		}
-
-		UART_DRV_SendData(terminal_IDX, (unsigned char*)output_buffer->clear, sizeof(OUTPUT_BUFFER_STRUCT));
-
-#ifdef PEX_USE_RTOS   
+	#ifdef PEX_USE_RTOS
 	}
 #endif    
 }

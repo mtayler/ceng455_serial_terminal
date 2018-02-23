@@ -75,7 +75,16 @@ Sources/rtos_main_task.o: ../Sources/rtos_main_task.c \
  /Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/MainTask.h \
  /Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/terminal.h \
  /Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/TerminalHandler.h \
- ../Sources/rtos_main_task.h ../Sources/os_tasks.h
+ ../Sources/rtos_main_task.h ../Sources/os_tasks.h \
+ /Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx_stdlib/source/include/stdio.h \
+ /Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx_stdlib/source/include/std_prv.h \
+ /Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx/source/nio/fcntl.h \
+ /Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx/source/nio/nio.h \
+ ../Sources/terminal_handler.h \
+ /Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx/source/include/queue.h \
+ ../Sources/messaging.h \
+ /Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h \
+ ../Sources/output.h
 
 /Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/Cpu.h:
 
@@ -232,3 +241,21 @@ Sources/rtos_main_task.o: ../Sources/rtos_main_task.c \
 ../Sources/rtos_main_task.h:
 
 ../Sources/os_tasks.h:
+
+/Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx_stdlib/source/include/stdio.h:
+
+/Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx_stdlib/source/include/std_prv.h:
+
+/Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx/source/nio/fcntl.h:
+
+/Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx/source/nio/nio.h:
+
+../Sources/terminal_handler.h:
+
+/Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx/source/include/queue.h:
+
+../Sources/messaging.h:
+
+/Users/mtayler/Documents/ceng455/serial_terminal/SDK/rtos/mqx/mqx/source/include/message.h:
+
+../Sources/output.h:
