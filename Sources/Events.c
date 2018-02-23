@@ -55,7 +55,7 @@ extern "C" {
 */
 void terminal_RxCallback(uint32_t instance, void * uartState)
 {
-	TERMINAL_MESSAGE_PTR msg_ptr = (TERMINAL_MESSAGE_PTR)_msg_alloc(terminal_message_pool);
+	TERMINAL_MESSAGE_PTR msg_ptr = (TERMINAL_MESSAGE_PTR)_msg_alloc(terminal_handler_pool);
 	if (msg_ptr == NULL) {
 		printf("Couldn't allocate terminal message pointer");
 		_task_block();

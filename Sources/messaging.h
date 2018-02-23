@@ -48,7 +48,7 @@ typedef struct terminal_message
    char*                   DATA;
 } TERMINAL_MESSAGE, * TERMINAL_MESSAGE_PTR;
 
-_pool_id terminal_message_pool;
+_pool_id terminal_handler_pool;
 _pool_id terminal_mgmt_pool;
 
 #endif /* SOURCES_MESSAGING_H_ */

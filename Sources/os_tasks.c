@@ -42,10 +42,17 @@ extern "C" {
 
 
 /* User includes (#include below this line is not maintained by Processor Expert) */
+
 #include "output.h"
 #include "messaging.h"
 #include "terminal_handler.h"
-#define VECTOR_TYPE _queue_id
+
+// Vector for opened tasks
+typedef struct read_entry {
+	_task_id  TASK_ID;
+	_queue_id QID;
+} READ_ENTRY, * READ_ENTRY_PTR;
+#define VECTOR_TYPE READ_ENTRY_PTR
 #define VECTOR_NAME stream
 #include "vector.h"
 
@@ -94,8 +101,8 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 		_task_block();
 	}
 	/* Create terminal handler message pool */
-	terminal_message_pool = _msgpool_create(sizeof(TERMINAL_MESSAGE), 1, 0, 0);
-	if (! terminal_message_pool) {
+	terminal_handler_pool = _msgpool_create(sizeof(TERMINAL_MESSAGE), 1, 0, 0);
+	if (! terminal_handler_pool) {
 		printf("\nCould not create terminal message pool\n");
 		_task_block();
 	}
@@ -104,10 +111,9 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 #ifdef PEX_USE_RTOS
 	while (1) {
 #endif
-		/* Handle incoming messages */
+		// Handle incoming management message
 		mgmt_msg_ptr = _msgq_poll(terminal_mgmt_qid);
-
-		// If there's a management message
+		msg_ptr = _msgq_poll(terminal_handler_qid);
 		if (mgmt_msg_ptr) {
 			printf("[TerminalHandler]: Received MGMT message: %s\n", R_request_to_str(mgmt_msg_ptr->RQST));
 			switch (mgmt_msg_ptr->RQST) {
@@ -139,17 +145,19 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 				}
 				case R_OpenR: {
 					// Add stream to vector of opened
-					_queue_id read_stream = mgmt_msg_ptr->HEADER.SOURCE_QID;
+					READ_ENTRY_PTR read_entry = malloc(sizeof(READ_ENTRY));
+					read_entry->TASK_ID = mgmt_msg_ptr->TASK_ID,
+					read_entry->QID = mgmt_msg_ptr->HEADER.SOURCE_QID;
 					bool contained = FALSE;
 					for (size_t i=0; i < vec_stream_size(read_queue); i++) {
-						if (vec_stream_get(read_queue, i) == read_stream) {
+						if (vec_stream_get(read_queue, i)->TASK_ID == mgmt_msg_ptr->TASK_ID) {
 							mgmt_msg_ptr->RETURN = FALSE;
 							contained = TRUE;
 							break;
 						}
 					}
 					if (! contained) {
-						vec_stream_append(read_queue, read_stream);
+						vec_stream_append(read_queue, read_entry);
 						mgmt_msg_ptr->RETURN = TRUE;
 					}
 					break;
@@ -160,7 +168,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 					// until line entered. Otherwise return RETURN = FALSE
 					bool authorized = FALSE;
 					for (size_t i=0; i < vec_stream_size(read_queue); i++) {
-						if (mgmt_msg_ptr->HEADER.SOURCE_QID == vec_stream_get(read_queue, i)) {
+						if (mgmt_msg_ptr->HEADER.SOURCE_QID == vec_stream_get(read_queue, i)->QID) {
 							authorized = TRUE;
 							break;
 						}
@@ -173,12 +181,13 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 					break;
 				}
 				case R_Close: {
-					if (*((_task_id*)mgmt_msg_ptr->DATA) == opened_write) {
+					if (mgmt_msg_ptr->TASK_ID == opened_write) {
 						opened_write = 0;
 					}
 					// Remove stream from read vector if exists
 					for (size_t i=0; i < vec_stream_size(read_queue); i++) {
-						if (vec_stream_get(read_queue, i) == mgmt_msg_ptr->HEADER.SOURCE_QID) {
+						if (vec_stream_get(read_queue, i)->TASK_ID == mgmt_msg_ptr->TASK_ID) {
+							free(vec_stream_get(read_queue, i));
 							vec_stream_del(read_queue, i);
 							break;
 						}
@@ -191,22 +200,22 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 			}
 			mgmt_msg_ptr->HEADER.TARGET_QID = mgmt_msg_ptr->HEADER.SOURCE_QID;
 			mgmt_msg_ptr->HEADER.SOURCE_QID = terminal_mgmt_qid;
+			mgmt_msg_ptr->HEADER.SIZE = sizeof(*mgmt_msg_ptr);
 			_msgq_send(mgmt_msg_ptr);
 		}
 
-		OUTPUT_LINE_PTR queued_line = (OUTPUT_LINE_PTR)_queue_dequeue(&output_queue);
-		if (queued_line) {
-			printf("%s\n", queued_line->LINE);
-			UART_DRV_SendDataBlocking(terminal_IDX, (unsigned char*)queued_line->LINE, sizeof(queued_line->LINE), 2000);
-			free(queued_line);
-			UART_DRV_SendDataBlocking(terminal_IDX, CODE_nextline, sizeof(CODE_nextline), 1000);
-			continue;
-		}
-
-		msg_ptr = _msgq_poll(terminal_handler_qid);
-		if (msg_ptr) {
+		if (msg_ptr && vec_stream_size(read_queue) > 0) {
 			char message = *(msg_ptr->DATA);
 			_msg_free(msg_ptr);
+			// Forward message to all reading tasks
+			for (size_t i=0; i < vec_stream_size(read_queue); i++) {
+				RECEIVED_LINE_MESSAGE_PTR rl = (RECEIVED_LINE_MESSAGE_PTR)_msg_alloc(terminal_handler_pool);
+				rl->HEADER.TARGET_QID = vec_stream_get(read_queue, i)->QID;
+				rl->HEADER.SOURCE_QID = terminal_handler_qid;
+				rl->HEADER.SIZE = sizeof(RECEIVED_LINE_MESSAGE);
+				rl->CHARACTER = message;
+				_msgq_send(rl);
+			}
 
 			/* Handle input */
 			if (message >= 32 && message <= 126) { // printable characters
@@ -219,8 +228,9 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 				// Iterate over list of queues opened for read and send line
 				for (size_t i=0; i < vec_stream_size(read_queue); i++) {
 					TERMINAL_MGMT_MESSAGE_PTR line_msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
-					line_msg_ptr->HEADER.TARGET_QID = vec_stream_get(read_queue, i);
+					line_msg_ptr->HEADER.TARGET_QID = vec_stream_get(read_queue, i)->QID;
 					line_msg_ptr->HEADER.SOURCE_QID = terminal_mgmt_qid;
+					line_msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 					line_msg_ptr->RQST = R_SentLine;
 					char* line = malloc(sizeof(char[LINE_LENGTH])); // make new string to send address in message
 					strcpy(line, output_buffer->buffer);
@@ -240,8 +250,17 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 				}
 			}
 			UART_DRV_SendData(terminal_IDX, (unsigned char*)output_buffer->clear, sizeof(OUTPUT_BUFFER_STRUCT));
-		} else {
-			// Give time for other tasks to run if there's no incoming text
+		}
+
+		OUTPUT_LINE_PTR queued_line = (OUTPUT_LINE_PTR)_queue_dequeue(&output_queue);
+		if (queued_line) {
+			UART_DRV_SendDataBlocking(terminal_IDX, (unsigned char*)queued_line->LINE, sizeof(queued_line->LINE), 2000);
+			free(queued_line);
+			UART_DRV_SendDataBlocking(terminal_IDX, CODE_nextline, sizeof(CODE_nextline), 1000);
+		}
+
+		if (! msg_ptr && ! mgmt_msg_ptr) {
+			// Give time for other tasks to run if there's no incoming messages
 			_time_delay(10);
 		}
 	#ifdef PEX_USE_RTOS

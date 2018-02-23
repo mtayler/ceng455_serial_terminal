@@ -12,7 +12,6 @@
 #include "messaging.h"
 
 _queue_id terminal_handler_mgmt_local_qid;
-_pool_id temrinal_handler_mgmt_local_pool;
 
 void terminal_handler_mgmt_init(void) {
 	terminal_handler_mgmt_local_qid = _msgq_open(USER_TASK_QID, 0);
@@ -131,7 +130,7 @@ bool _getline(char * line) {
 		printf("[UserTask/GetLine]: Received good %s (%d)\n", R_request_to_str(msg_ptr->RQST), msg_ptr->RETURN);
 		printf("[UserTask/GetLine]: Waiting for line to be returned\n");
 		do {      // If good, wait for actual line (no timeout, user input)
-			_msg_free(msg_ptr);
+			if (msg_ptr) { _msg_free(msg_ptr); }
 			msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_handler_mgmt_local_qid, 0);
 		} while (msg_ptr && msg_ptr->RQST != R_SentLine);
 		if (msg_ptr) {
@@ -145,8 +144,10 @@ bool _getline(char * line) {
 	} else {      // If response is bad
 		result = FALSE;
 	}
-	printf("[UserTask]: Received back MGMT message: %s (%d)\n", R_request_to_str(msg_ptr->RQST), result);
-	_msg_free(msg_ptr);
+	if (msg_ptr) {
+		printf("[UserTask]: Received back MGMT message: %s (%d)\n", R_request_to_str(msg_ptr->RQST), result);
+		_msg_free(msg_ptr);
+	}
 	return result;
 }
 

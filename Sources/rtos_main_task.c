@@ -70,32 +70,31 @@ void main_task(os_task_param_t task_init_data)
 
 	terminal_handler_mgmt_init();
 
-	_queue_id local_qid = _msgq_open(4, 0);
+	_queue_id local_qid = _msgq_open(6, 0);
 	if (! local_qid) {
 		printf("\nCould not open main task message queue\n");
 		_task_block();
 	}
 
+	_time_delay(100);
+	OpenR(local_qid);
+	_queue_id qid = OpenW();
+
 #ifdef PEX_USE_RTOS
 	while (1) {
 #endif
-		/* Write your code here ... */
 		_time_delay(1000);
-		printf("Trying to write line\n");
-		_queue_id qid = OpenW();
-		_putline(qid, "Test stuff");
-		Close();
-
 
 		printf("[MainTask]: Trying to get line\n");
-		OpenR(local_qid);
 		char string[LINE_LENGTH];
 		if (_getline(string)) {
 			printf("[MainTask]: Received \"%s\"!\n", string);
 		} else {
 			printf("[MainTask]: GetLine failed");
 		}
-		Close();
+
+		printf("Trying to write line\n");
+		_putline(qid, "Test stuff");
 #ifdef PEX_USE_RTOS   
 	}
 #endif    

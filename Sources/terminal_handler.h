@@ -17,8 +17,8 @@
 
 typedef struct received_line {
 	MESSAGE_HEADER_STRUCT HEADER;
-	char*                 LINE;
-} RECEIVED_LINE, * RECEIVED_LINE_PTR;
+	char                  CHARACTER;
+} RECEIVED_LINE_MESSAGE, * RECEIVED_LINE_MESSAGE_PTR;
 
 typedef struct output_line {
 	QUEUE_ELEMENT_STRUCT HEADER;
@@ -26,8 +26,8 @@ typedef struct output_line {
 } OUTPUT_LINE, * OUTPUT_LINE_PTR;
 
 
-void terminal_handler_mgmt_init();
-bool OpenR(_queue_id);
+void terminal_handler_mgmt_init(void);
+bool OpenR(_queue_id qid);
 bool _getline(char* string);
 _queue_id OpenW(void);
 bool _putline(_queue_id qid, char line[LINE_LENGTH]);
