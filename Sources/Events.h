@@ -41,6 +41,7 @@
 #include "MainTask.h"
 #include "terminal.h"
 #include "TerminalHandler.h"
+#include "ReadTask.h"
 
 #ifdef __cplusplus
 extern "C" {

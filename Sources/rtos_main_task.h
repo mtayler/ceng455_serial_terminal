@@ -41,10 +41,17 @@
 #include "MainTask.h"
 #include "terminal.h"
 #include "TerminalHandler.h"
+#include "ReadTask.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif 
+
+#define READ_TASK (5)
+#define NUM_CLIENTS (2)
+#define CLIENT_BASE_QID (12)
+
 
 /*
 ** ===================================================================

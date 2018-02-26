@@ -41,6 +41,7 @@
 #include "MainTask.h"
 #include "terminal.h"
 #include "TerminalHandler.h"
+#include "ReadTask.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +58,17 @@ extern "C" {
 */
 void TerminalHandler_task(os_task_param_t task_init_data);
 
+
+/*
+** ===================================================================
+**     Callback    : ReadTask_task
+**     Description : Task function entry.
+**     Parameters  :
+**       task_init_data - OS task parameter
+**     Returns : Nothing
+** ===================================================================
+*/
+void ReadTask_task(os_task_param_t task_init_data);
 
 /* END os_tasks */
 

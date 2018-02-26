@@ -59,8 +59,6 @@ extern void PEX_components_init(void);
  */
 void main_task(os_task_param_t task_init_data)
 {
-	/* Write your local variable definition here */
-
 
 	/* Initialization of Processor Expert components (when some RTOS is active). DON'T REMOVE THIS CODE!!! */
 #ifdef MainTask_PEX_RTOS_COMPONENTS_INIT
@@ -68,36 +66,52 @@ void main_task(os_task_param_t task_init_data)
 #endif 
 	/* End of Processor Expert components initialization.  */
 
+	_mutex_init(print_mutex, 0);
+
+	char in_line[LINE_LENGTH];
+	char out_line[LINE_LENGTH+20];
+
 	terminal_handler_mgmt_init();
 
-	_queue_id local_qid = _msgq_open(6, 0);
+	_queue_id local_qid = _msgq_open(10, 0);
 	if (! local_qid) {
+		_mutex_lock(print_mutex);
 		printf("\nCould not open main task message queue\n");
+		_mutex_unlock(print_mutex);
 		_task_block();
 	}
 
 	_time_delay(100);
+
 	OpenR(local_qid);
 	_queue_id qid = OpenW();
+
+	for (uint16_t i = 0; i < NUM_CLIENTS; i++) {
+	      _task_id task_id = _task_create(0, READTASK_TASK, i);
+
+	      if (task_id == 0) {
+	    	  _mutex_lock(print_mutex);
+	         printf("[MainTask]: Could not create a read task\n");
+	         _mutex_unlock(print_mutex);
+	         _task_block();
+	      }
+	   }
+
+	_time_delay(1000);
 
 #ifdef PEX_USE_RTOS
 	while (1) {
 #endif
-		_time_delay(1000);
-
-		printf("[MainTask]: Trying to get line\n");
-		char string[LINE_LENGTH];
-		if (_getline(string)) {
-			printf("[MainTask]: Received \"%s\"!\n", string);
+		if (_getline(in_line, qid)) {
+			sprintf(out_line, "Received: \"%s\"", in_line);
+			_putline(qid, out_line);
 		} else {
-			printf("[MainTask]: GetLine failed");
+			_mutex_lock(print_mutex);
+			printf("[MainTask]: Couldn't get line\n");
+			_mutex_unlock(print_mutex);
 		}
-
-		printf("Trying to write line\n");
-		_putline(qid, "Test stuff");
-#ifdef PEX_USE_RTOS   
+		OSA_TimeDelay(100);
 	}
-#endif    
 }
 
 /* END rtos_main_task */

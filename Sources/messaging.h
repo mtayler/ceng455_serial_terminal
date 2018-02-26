@@ -13,7 +13,7 @@
 #define TERMINAL_MGMT_QID (1)
 #define TERMINAL_HANDLER_QID (2)
 
-#define USER_TASK_QID (3)
+#define TERMINAL_HANDLER_MGMT_QID (3)
 
 #define MGMT_WAIT (10000)
 
