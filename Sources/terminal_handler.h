@@ -23,6 +23,11 @@ typedef struct received_char {
 	char                  CHARACTER;
 } RECEIVED_CHAR_MESSAGE, * RECEIVED_CHAR_MESSAGE_PTR;
 
+typedef struct send_line {
+	QUEUE_ELEMENT_STRUCT HEADER;
+	_queue_id            TARGET_QID;
+} SEND_LINE_DEST, * SEND_LINE_DEST_PTR;
+
 typedef struct output_line {
 	QUEUE_ELEMENT_STRUCT HEADER;
 	char                 LINE[LINE_LENGTH];

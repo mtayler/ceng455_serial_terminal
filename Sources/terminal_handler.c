@@ -149,26 +149,14 @@ bool _getline(char * line, _queue_id qid) {
 	} while (msg_ptr && msg_ptr->RQST != R_GetLine);
 
 	bool result = FALSE;
-	if (msg_ptr && msg_ptr->RETURN) {
+	if (msg_ptr && msg_ptr->RETURN) {  // If true response, get returned line
 		_mutex_lock(print_mutex);
-		printf("[UserTask/_getline]: Received good %s (%d)\n", R_request_to_str(msg_ptr->RQST), msg_ptr->RETURN);
-		printf("[UserTask/_getline]: Waiting for line to be returned\n");
+		printf("[UserTask/_getline]: Received line \"%s\"\n", (char*)msg_ptr->DATA);
 		_mutex_unlock(print_mutex);
-		do {      // If good, wait for actual line (no timeout, user input)
-			if (msg_ptr) { _msg_free(msg_ptr); }
-			msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_handler_mgmt_local_qid, 0);
-		} while (msg_ptr && msg_ptr->RQST != R_SentLine);
-		if (msg_ptr) {
-			_mutex_lock(print_mutex);
-			printf("[UserTask/_getline]: Received line\n");
-			_mutex_unlock(print_mutex);
-			strcpy(line, (char *)msg_ptr->DATA);
-			free(msg_ptr->DATA);
-			result = TRUE;
-		} else {
-			result = FALSE;
-		}
-	} else {      // If response is bad
+		strcpy(line, (char *)msg_ptr->DATA);
+		free(msg_ptr->DATA);
+		result = TRUE;
+	} else {               // If false response
 		result = FALSE;
 	}
 	if (msg_ptr) {

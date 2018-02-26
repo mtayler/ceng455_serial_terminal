@@ -43,6 +43,12 @@
 #include "TerminalHandler.h"
 #include "ReadTask.h"
 
+// Vector for opened tasks
+typedef struct read_entry {
+	_task_id  TASK_ID;
+	_queue_id QID;
+} READ_ENTRY, * READ_ENTRY_PTR;
+
 #ifdef __cplusplus
 extern "C" {
 #endif 
