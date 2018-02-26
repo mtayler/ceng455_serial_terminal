@@ -45,7 +45,7 @@ extern "C" {
 
 #include "output.h"
 #include "messaging.h"
-#include "terminal_handler.h"
+#include <terminal_manager.h>
 
 #define VECTOR_TYPE READ_ENTRY_PTR
 #define VECTOR_NAME stream
@@ -80,6 +80,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 	vec_stream_init(read_access);
 	_task_id opened_write = 0;       // task id opened for write
 
+	// Create terminal handler management queue and pool (user task communication)
 	terminal_mgmt_qid = _msgq_open(TERMINAL_MGMT_QID, 0);
 	if (! terminal_mgmt_qid) {
 		printf("\nCould not open terminal handler mgmt message queue\n");
@@ -91,13 +92,12 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 		_task_block();
 	}
 
-	/* Create terminal message queue */
+	// Create terminal handler message queue and pool (to receive characters from UART)
 	terminal_handler_qid = _msgq_open(TERMINAL_HANDLER_QID, 0);
 	if (! terminal_handler_qid) {
 		printf("\nCould not open terminal handler message queue\n");
 		_task_block();
 	}
-	/* Create terminal handler message pool */
 	terminal_handler_pool = _msgpool_create(sizeof(TERMINAL_MESSAGE), 2, 1, 0);
 	if (! terminal_handler_pool) {
 		printf("\nCould not create terminal message pool\n");
@@ -108,14 +108,13 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 #ifdef PEX_USE_RTOS
 	while (1) {
 #endif
-		// Handle incoming management message
 		mgmt_msg_ptr = _msgq_poll(terminal_mgmt_qid);
 		msg_ptr = _msgq_poll(terminal_handler_qid);
+		// Handle incoming management message
 		if (mgmt_msg_ptr) {
-//			printf("[TerminalHandler]: Received MGMT message: %s\n", R_request_to_str(mgmt_msg_ptr->RQST));
 			switch (mgmt_msg_ptr->RQST) {
 				case R_OpenW: {
-					if (! opened_write) {                           // Set the write task and return our input queue id
+					if (! opened_write) {                           // Set the write task and return the management queue id
 						opened_write = mgmt_msg_ptr->TASK_ID;
 						mgmt_msg_ptr->RETURN = TRUE;
 						mgmt_msg_ptr->DATA = &terminal_mgmt_qid;
@@ -126,25 +125,17 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 					break;
 				}
 				case R_PutLine: {
-					if (mgmt_msg_ptr->TASK_ID == opened_write) {     // If the message source has opened for write
+					if (mgmt_msg_ptr->TASK_ID == opened_write) {    // If the message source has opened for write
 						OUTPUT_LINE_PTR outline = malloc(sizeof(OUTPUT_LINE));
 						strncpy(outline->LINE, (char*)mgmt_msg_ptr->DATA, sizeof(outline->LINE));
-						bool queued = _queue_enqueue(&output_queue, (QUEUE_ELEMENT_STRUCT_PTR)outline);
-						if (queued) {
-							mgmt_msg_ptr->RETURN = TRUE;
-						} else {
-							mgmt_msg_ptr->RETURN = FALSE;
-						}
+						mgmt_msg_ptr->RETURN = _queue_enqueue(&output_queue, (QUEUE_ELEMENT_STRUCT_PTR)outline);
 					} else {
-						mgmt_msg_ptr->RETURN = TRUE;
+						mgmt_msg_ptr->RETURN = FALSE;
 					}
 					break;
 				}
 				case R_OpenR: {
-					// Add stream to vector of opened
-					READ_ENTRY_PTR read_entry = malloc(sizeof(READ_ENTRY));
-					read_entry->TASK_ID = mgmt_msg_ptr->TASK_ID,
-					read_entry->QID = mgmt_msg_ptr->HEADER.SOURCE_QID;
+					// Check if opening task id has already opened, otherwise add to tasks with read access
 					bool contained = FALSE;
 					for (size_t i=0; i < vec_stream_size(read_access); i++) {
 						if (vec_stream_get(read_access, i)->TASK_ID == mgmt_msg_ptr->TASK_ID) {
@@ -161,12 +152,13 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 				}
 				case R_GetLine: {
 					// Check if sending Queue is registered for read
-					// If registered don't send anything and keep call blocking
+					// If registered don't send anything and terminal_handler call blocking
 					// until line entered. Otherwise return RETURN = FALSE
 					bool enrolled = FALSE;
 					for (size_t i=0; i < vec_stream_size(read_access); i++) {
 						if (mgmt_msg_ptr->TASK_ID == vec_stream_get(read_access, i)->TASK_ID) {
-							SEND_LINE_DEST dest = {.TARGET_QID=mgmt_msg_ptr->HEADER.SOURCE_QID};
+							SEND_LINE_DEST_PTR dest = malloc(sizeof(SEND_LINE_DEST));
+							dest->TARGET_QID = mgmt_msg_ptr->HEADER.SOURCE_QID;
 							enrolled = _queue_enqueue(dest);
 							break;
 						}
@@ -179,10 +171,10 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 					break;
 				}
 				case R_Close: {
+					// Remove task from read and write access, if opened
 					if (mgmt_msg_ptr->TASK_ID == opened_write) {
 						opened_write = 0;
 					}
-					// Remove stream from read vector if exists
 					for (size_t i=0; i < vec_stream_size(read_access); i++) {
 						if (vec_stream_get(read_access, i)->TASK_ID == mgmt_msg_ptr->TASK_ID) {
 							free(vec_stream_get(read_access, i));
@@ -204,6 +196,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 			}
 		}
 
+		// Parse received character if any user tasks are listening
 		if (msg_ptr && vec_stream_size(read_access) > 0) {
  			char message = *(msg_ptr->DATA);
 			// Forward message to all reading tasks
@@ -233,7 +226,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 				while((dest = _queue_dequeue(send_line_queue)) && dest) {
 					TERMINAL_MGMT_MESSAGE_PTR line_msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
 					if (line_msg_ptr) {
-						line_msg_ptr->HEADER.TARGET_QID = dest->TARGET_QID;
+						line_msg_ptr->HEADER.TARGET_QID = dest->TARGET_QID; free(dest);
 						line_msg_ptr->HEADER.SOURCE_QID = terminal_mgmt_qid;
 						line_msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 						line_msg_ptr->RQST = R_SentLine;
@@ -293,6 +286,8 @@ void ReadTask_task(os_task_param_t task_init_data)
 	_queue_id                 client_qid;
 
 	client_qid  = _msgq_open((_queue_number)(CLIENT_BASE_QID + _task_get_parameter()), 0);
+
+	terminal_manager_init();
 
 	if (client_qid == 0) {
 		_mutex_lock(print_mutex);

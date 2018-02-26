@@ -7,21 +7,23 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <terminal_manager.h>
 
-#include "terminal_handler.h"
 #include "messaging.h"
 
-_queue_id terminal_handler_mgmt_local_qid;
-bool terminal_handler_mgmt_initialized = FALSE;
 
-void terminal_handler_mgmt_init(void) {
-	if (! terminal_handler_mgmt_initialized) {
-		terminal_handler_mgmt_local_qid = _msgq_open(TERMINAL_HANDLER_MGMT_QID, 0);
-		if (! terminal_handler_mgmt_local_qid) {
+// Give a unique terminal manager to each file including the terminal manager
+static _queue_id terminal_manager_local_qid;
+static bool terminal_manager_initialized = FALSE;
+
+void terminal_manager_init(void) {
+	if (! terminal_manager_initialized) {
+		terminal_manager_local_qid = _msgq_open(TERMINAL_HANDLER_MGMT_QID, 0);
+		if (! terminal_manager_local_qid) {
 			printf("\nCould not open terminal handler mgmt message queue\n");
 			_task_block();
 		}
-		terminal_handler_mgmt_initialized = TRUE;
+		terminal_manager_initialized = TRUE;
 	}
 }
 
@@ -33,23 +35,17 @@ _queue_id OpenW(void) {
 		_task_block();
 	}
 
-	msg_ptr->HEADER.SOURCE_QID = terminal_handler_mgmt_local_qid;
+	msg_ptr->HEADER.SOURCE_QID = terminal_manager_local_qid;
 	msg_ptr->HEADER.TARGET_QID = TERMINAL_MGMT_QID;
 	msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 	msg_ptr->TASK_ID = _task_get_id();
 	msg_ptr->RQST = R_OpenW;
 	msg_ptr->HEADER.SIZE = sizeof(msg_ptr->HEADER) + sizeof(msg_ptr->DATA) + sizeof(msg_ptr->RQST) + 1;
 
-	if (! _msgq_send(msg_ptr)) {
-		printf("Couldn't send OpenW message");
-		_task_block();
-	}
-
+	// Send initial message and wait for correct response message
 	do {
-		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_handler_mgmt_local_qid, MGMT_WAIT);
-//		if (msg_ptr && msg_ptr->RQST != R_OpenW) {	// if we received the wrong message, resend
-//			_msgq_send(msg_ptr);
-//		}
+		if (msg_ptr) { _msgq_send(msg_ptr); }
+		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_manager_local_qid, MGMT_WAIT);
 	} while (msg_ptr && msg_ptr->RQST != R_OpenW);
 
 	_queue_id qid;
@@ -75,18 +71,19 @@ bool _putline(_queue_id qid, char line[LINE_LENGTH]) {
 		_task_block();
 	}
 
-	msg_ptr->HEADER.SOURCE_QID = terminal_handler_mgmt_local_qid;
+	msg_ptr->HEADER.SOURCE_QID = terminal_manager_local_qid;
 	msg_ptr->HEADER.TARGET_QID = TERMINAL_MGMT_QID;
 	msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 	msg_ptr->RQST = R_PutLine;
 	msg_ptr->TASK_ID = _task_get_id();
 	msg_ptr->DATA = line;
-	_msgq_send(msg_ptr);
 
+	// Send initial message and wait for correct response message
 	do {
-		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_handler_mgmt_local_qid, MGMT_WAIT);
-
+		if (msg_ptr) { _msgq_send(msg_ptr); }
+		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_manager_local_qid, MGMT_WAIT);
 	} while (msg_ptr && msg_ptr->RQST != R_PutLine );
+
 	bool result = FALSE;
 	if (msg_ptr) {
 		result = msg_ptr->RETURN;
@@ -111,13 +108,12 @@ bool OpenR(_queue_id stream_no) {
 	msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 	msg_ptr->RQST = R_OpenR;
 	msg_ptr->TASK_ID = _task_get_id();
-	_msgq_send(msg_ptr);
 
+	// Send initial message and wait for correct response message
 	do {
+		if (msg_ptr) { _msgq_send(msg_ptr); }
 		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(stream_no, MGMT_WAIT);
-//		if (msg_ptr && msg_ptr->RQST != R_OpenR) {	// if we received the wrong message, resend
-//			_msgq_send(msg_ptr);
-//		}
+
 	} while (msg_ptr && msg_ptr->RQST != R_OpenR );
 
 	bool result = FALSE;
@@ -137,26 +133,28 @@ bool _getline(char * line, _queue_id qid) {
 		printf("Couldn't allocate _getline message\n");
 		_task_block();
 	}
-	msg_ptr->HEADER.SOURCE_QID = terminal_handler_mgmt_local_qid;
+	msg_ptr->HEADER.SOURCE_QID = terminal_manager_local_qid;
 	msg_ptr->HEADER.TARGET_QID = TERMINAL_MGMT_QID;
 	msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 	msg_ptr->RQST = R_GetLine;
 	msg_ptr->TASK_ID = _task_get_id();
-	_msgq_send(msg_ptr);
 
-	do {     // Get response of request
-		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_handler_mgmt_local_qid, MGMT_WAIT);
+	// Send initial message and wait for correct response message
+	do {
+		if (msg_ptr) { _msgq_send(msg_ptr); }
+		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_manager_local_qid, MGMT_WAIT);
 	} while (msg_ptr && msg_ptr->RQST != R_GetLine);
 
+	// Relay line if response was successful, otherwise propagate error
 	bool result = FALSE;
-	if (msg_ptr && msg_ptr->RETURN) {  // If true response, get returned line
+	if (msg_ptr && msg_ptr->RETURN) {
 		_mutex_lock(print_mutex);
 		printf("[UserTask/_getline]: Received line \"%s\"\n", (char*)msg_ptr->DATA);
 		_mutex_unlock(print_mutex);
 		strcpy(line, (char *)msg_ptr->DATA);
 		free(msg_ptr->DATA);
 		result = TRUE;
-	} else {               // If false response
+	} else {
 		result = FALSE;
 	}
 	if (msg_ptr) {
@@ -176,15 +174,16 @@ bool Close(void) {
 		_task_block();
 	}
 
-	msg_ptr->HEADER.SOURCE_QID = terminal_handler_mgmt_local_qid;
+	msg_ptr->HEADER.SOURCE_QID = terminal_manager_local_qid;
 	msg_ptr->HEADER.TARGET_QID = TERMINAL_MGMT_QID;
 	msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 	msg_ptr->RQST = R_Close;
 	msg_ptr->TASK_ID = _task_get_id();
-	_msgq_send(msg_ptr);
 
+	// Send initial message and wait for correct response message
 	do {
-		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_handler_mgmt_local_qid, MGMT_WAIT);
+		if (msg_ptr) { _msgq_send(msg_ptr); }
+		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_manager_local_qid, MGMT_WAIT);
 	} while (msg_ptr && msg_ptr->RQST != R_Close);
 	bool result = FALSE;
 	if (msg_ptr) {

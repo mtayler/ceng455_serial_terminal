@@ -5,8 +5,8 @@
  *      Author: mtayler
  */
 
-#ifndef SOURCES_TERMINAL_HANDLER_H_
-#define SOURCES_TERMINAL_HANDLER_H_
+#ifndef SOURCES_TERMINAL_MANAGER_H_
+#define SOURCES_TERMINAL_MANAGER_H_
 
 #include <queue.h>
 #include <mutex.h>
@@ -34,11 +34,11 @@ typedef struct output_line {
 } OUTPUT_LINE, * OUTPUT_LINE_PTR;
 
 
-void terminal_handler_mgmt_init(void);
+void terminal_manager_init(void);
 bool OpenR(_queue_id qid);
 bool _getline(char* string, _queue_id qid);
 _queue_id OpenW(void);
 bool _putline(_queue_id qid, char line[LINE_LENGTH]);
 bool Close(void);
 
-#endif /* SOURCES_TERMINAL_HANDLER_H_ */
+#endif /* SOURCES_TERMINAL_MANAGER_H_ */

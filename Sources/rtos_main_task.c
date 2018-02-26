@@ -41,7 +41,7 @@ extern "C" {
 
 #include <stdio.h>
 
-#include "terminal_handler.h"
+#include <terminal_manager.h>
 
 /* Initialization of Processor Expert components function prototype */
 #ifdef MainTask_PEX_RTOS_COMPONENTS_INIT
@@ -66,12 +66,12 @@ void main_task(os_task_param_t task_init_data)
 #endif 
 	/* End of Processor Expert components initialization.  */
 
-	_mutex_init(print_mutex, 0);
-
 	char in_line[LINE_LENGTH];
 	char out_line[LINE_LENGTH+20];
 
-	terminal_handler_mgmt_init();
+	_mutex_init(print_mutex, 0);
+
+	terminal_manager_init();
 
 	_queue_id local_qid = _msgq_open(10, 0);
 	if (! local_qid) {
@@ -86,6 +86,7 @@ void main_task(os_task_param_t task_init_data)
 	OpenR(local_qid);
 	_queue_id qid = OpenW();
 
+	// Create clients to listen to individual character inputs
 	for (uint16_t i = 0; i < NUM_CLIENTS; i++) {
 	      _task_id task_id = _task_create(0, READTASK_TASK, i);
 
@@ -102,6 +103,8 @@ void main_task(os_task_param_t task_init_data)
 #ifdef PEX_USE_RTOS
 	while (1) {
 #endif
+
+		// Get a line from the terminal, then put line with some wrapper text
 		if (_getline(in_line, qid)) {
 			sprintf(out_line, "Received: \"%s\"", in_line);
 			_putline(qid, out_line);
