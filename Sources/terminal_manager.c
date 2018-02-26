@@ -11,6 +11,8 @@
 
 #include "messaging.h"
 
+#define DEBUG (1)
+
 
 // Give a unique terminal manager to each file including the terminal manager
 static _queue_id terminal_manager_local_qid;
@@ -56,9 +58,11 @@ _queue_id OpenW(void) {
 		qid = 0;
 		printf("Not opened for write\n");
 	}
+#ifdef DEBUG
 	_mutex_lock(print_mutex);
 	printf("[UserTask/OpenW]: Received back MGMT message: %s (%d)\n", R_request_to_str(msg_ptr->RQST), qid);
 	_mutex_unlock(print_mutex);
+#endif
 	_msg_free(msg_ptr);
 	return qid;
 }
@@ -87,9 +91,11 @@ bool _putline(_queue_id qid, char line[LINE_LENGTH]) {
 	bool result = FALSE;
 	if (msg_ptr) {
 		result = msg_ptr->RETURN;
+#ifdef DEBUG
 		_mutex_lock(print_mutex);
 		printf("[UserTask/_putline]: Received back MGMT message: %s (%d)\n", R_request_to_str(msg_ptr->RQST), result);
 		_mutex_unlock(print_mutex);
+#endif
 		_msg_free(msg_ptr);
 	} else {
 		result = FALSE;
@@ -120,14 +126,16 @@ bool OpenR(_queue_id stream_no) {
 	if (msg_ptr) {
 		result = msg_ptr->RETURN;
 	}
+#ifdef DEBUG
 	_mutex_lock(print_mutex);
 	printf("[UserTask/OpenR]: Received back MGMT message: %s (%d)\n", R_request_to_str(msg_ptr->RQST), result);
 	_mutex_unlock(print_mutex);
+#endif
 	_msg_free(msg_ptr);
 	return result;
 }
 
-bool _getline(char * line, _queue_id qid) {
+bool _getline(char * line) {
 	TERMINAL_MGMT_MESSAGE_PTR msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
 	if (! msg_ptr) {
 		printf("Couldn't allocate _getline message\n");
@@ -142,7 +150,7 @@ bool _getline(char * line, _queue_id qid) {
 	// Send initial message and wait for correct response message
 	do {
 		if (msg_ptr) { _msgq_send(msg_ptr); }
-		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_manager_local_qid, MGMT_WAIT);
+		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_manager_local_qid, 0);  // Don't timeout (waiting for user input)
 	} while (msg_ptr && msg_ptr->RQST != R_GetLine);
 
 	// Relay line if response was successful, otherwise propagate error
@@ -158,9 +166,11 @@ bool _getline(char * line, _queue_id qid) {
 		result = FALSE;
 	}
 	if (msg_ptr) {
+#ifdef DEBUG
 		_mutex_lock(print_mutex);
 		printf("[UserTask/_getline]: Received back MGMT message: %s (%d)\n", R_request_to_str(msg_ptr->RQST), result);
 		_mutex_unlock(print_mutex);
+#endif
 		_msg_free(msg_ptr);
 	}
 	return result;
@@ -189,9 +199,11 @@ bool Close(void) {
 	if (msg_ptr) {
 		result = msg_ptr->RETURN;
 	}
+#ifdef DEBUG
 	_mutex_lock(print_mutex);
 	printf("[UserTask/Close]: Received back MGMT message: %s (%d)\n", R_request_to_str(msg_ptr->RQST), result);
 	_mutex_unlock(print_mutex);
+#endif
 	_msg_free(msg_ptr);
 	return result;
 }

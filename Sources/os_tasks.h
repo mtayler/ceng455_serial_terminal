@@ -43,6 +43,8 @@
 #include "TerminalHandler.h"
 #include "ReadTask.h"
 
+#include <message.h>
+
 // Vector for opened tasks
 typedef struct read_entry {
 	_task_id  TASK_ID;

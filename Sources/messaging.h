@@ -10,6 +10,8 @@
 
 #include <message.h>
 
+#include "terminal_manager.h"
+
 #define TERMINAL_MGMT_QID (1)
 #define TERMINAL_HANDLER_QID (2)
 
@@ -23,10 +25,9 @@ enum REQUEST {
 	R_OpenW,
 	R_PutLine,
 	R_Close,
-	R_SentLine,
 };
 
-char* REQUEST_TYPES[6] = {"R_OpenR", "R_GetLine", "R_OpenW", "R_PutLine", "R_Close", "R_SentLine"};
+char* REQUEST_TYPES[5] = {"R_OpenR", "R_GetLine", "R_OpenW", "R_PutLine", "R_Close"};
 
 inline static const char* R_request_to_str(enum REQUEST rqst) {
 	return REQUEST_TYPES[(size_t)rqst];

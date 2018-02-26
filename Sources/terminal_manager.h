@@ -36,7 +36,7 @@ typedef struct output_line {
 
 void terminal_manager_init(void);
 bool OpenR(_queue_id qid);
-bool _getline(char* string, _queue_id qid);
+bool _getline(char* string);
 _queue_id OpenW(void);
 bool _putline(_queue_id qid, char line[LINE_LENGTH]);
 bool Close(void);

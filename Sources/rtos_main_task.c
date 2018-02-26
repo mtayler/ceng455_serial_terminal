@@ -83,7 +83,9 @@ void main_task(os_task_param_t task_init_data)
 
 	_time_delay(100);
 
+	printf("Unauthorized _getline returns: %d\n", _getline(0));
 	OpenR(local_qid);
+	printf("Unauthorized _putline returns: %d\n", _putline(TERMINAL_MGMT_QID, ""));
 	_queue_id qid = OpenW();
 
 	// Create clients to listen to individual character inputs
@@ -103,9 +105,11 @@ void main_task(os_task_param_t task_init_data)
 #ifdef PEX_USE_RTOS
 	while (1) {
 #endif
-
+		_mutex_lock(print_mutex);
+		printf("[MainTask]: Trying getline\n");
+		_mutex_unlock(print_mutex);
 		// Get a line from the terminal, then put line with some wrapper text
-		if (_getline(in_line, qid)) {
+		if (_getline(in_line)) {
 			sprintf(out_line, "Received: \"%s\"", in_line);
 			_putline(qid, out_line);
 		} else {

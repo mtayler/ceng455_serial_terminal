@@ -47,6 +47,8 @@ extern "C" {
 #include "messaging.h"
 #include <terminal_manager.h>
 
+#define PUTLINE_TIMEOUT (1000)
+
 #define VECTOR_TYPE READ_ENTRY_PTR
 #define VECTOR_NAME stream
 #include "vector.h"
@@ -145,6 +147,9 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 						}
 					}
 					if (! contained) {
+						READ_ENTRY_PTR read_entry = malloc(sizeof(READ_ENTRY));
+						read_entry->TASK_ID = mgmt_msg_ptr->TASK_ID;
+						read_entry->QID = mgmt_msg_ptr->HEADER.SOURCE_QID;
 						vec_stream_append(read_access, read_entry);
 						mgmt_msg_ptr->RETURN = TRUE;
 					}
@@ -159,7 +164,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 						if (mgmt_msg_ptr->TASK_ID == vec_stream_get(read_access, i)->TASK_ID) {
 							SEND_LINE_DEST_PTR dest = malloc(sizeof(SEND_LINE_DEST));
 							dest->TARGET_QID = mgmt_msg_ptr->HEADER.SOURCE_QID;
-							enrolled = _queue_enqueue(dest);
+							enrolled = _queue_enqueue(&send_line_queue, dest);
 							break;
 						}
 					}
@@ -222,14 +227,14 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 			} else if (message == '\r') { // new line
 				UART_DRV_SendData(terminal_IDX, CODE_nextline, sizeof(CODE_nextline));
 				// Iterate over list of queues opened for read and send line
-				SEND_LINE_DEST dest;
-				while((dest = _queue_dequeue(send_line_queue)) && dest) {
+				SEND_LINE_DEST_PTR dest;
+				while((dest = (SEND_LINE_DEST_PTR)_queue_dequeue(&send_line_queue)) && dest) {
 					TERMINAL_MGMT_MESSAGE_PTR line_msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
 					if (line_msg_ptr) {
 						line_msg_ptr->HEADER.TARGET_QID = dest->TARGET_QID; free(dest);
 						line_msg_ptr->HEADER.SOURCE_QID = terminal_mgmt_qid;
 						line_msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
-						line_msg_ptr->RQST = R_SentLine;
+						line_msg_ptr->RQST = R_GetLine;
 						char* line = malloc(sizeof(char[LINE_LENGTH])); // make new string to send address in message
 						strcpy(line, output_buffer->buffer);
 						line_msg_ptr->DATA = line;
@@ -256,7 +261,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 
 		OUTPUT_LINE_PTR queued_line = (OUTPUT_LINE_PTR)_queue_dequeue(&output_queue);
 		if (queued_line) {
-			UART_DRV_SendData(terminal_IDX, (unsigned char*)queued_line->LINE, sizeof(queued_line->LINE));
+			UART_DRV_SendDataBlocking(terminal_IDX, (unsigned char*)queued_line->LINE, sizeof(queued_line->LINE), PUTLINE_TIMEOUT);
 			free(queued_line);
 			UART_DRV_SendData(terminal_IDX, CODE_nextline, sizeof(CODE_nextline));
 		}
@@ -308,9 +313,15 @@ void ReadTask_task(os_task_param_t task_init_data)
 			_task_block();
 		}
 
+#ifndef DEBUG
 		_mutex_lock(print_mutex);
-//		printf("[ReadTask%d]: Received character 0x%x (%c)\n", (uint)task_init_data, msg_ptr->CHARACTER, msg_ptr->CHARACTER);
+		if (msg_ptr->CHARACTER >= 32 && msg_ptr->CHARACTER <= 126) {
+			printf("[ReadTask%d]: Received printable character 0x%x (%c)\n", (uint)task_init_data, msg_ptr->CHARACTER, msg_ptr->CHARACTER);
+		} else {
+			printf("[ReadTask%d]: Received unprintable character 0x%x\n", (uint)task_init_data, msg_ptr->CHARACTER, msg_ptr->CHARACTER);
+		}
 		_mutex_unlock(print_mutex);
+#endif
 
 		_msg_free(msg_ptr);
 #ifdef PEX_USE_RTOS   
