@@ -164,7 +164,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 						if (mgmt_msg_ptr->TASK_ID == vec_stream_get(read_access, i)->TASK_ID) {
 							SEND_LINE_DEST_PTR dest = malloc(sizeof(SEND_LINE_DEST));
 							dest->TARGET_QID = mgmt_msg_ptr->HEADER.SOURCE_QID;
-							enrolled = _queue_enqueue(&send_line_queue, dest);
+							enrolled = _queue_enqueue(&send_line_queue, (QUEUE_ELEMENT_STRUCT_PTR)dest);
 							break;
 						}
 					}
@@ -319,7 +319,7 @@ void ReadTask_task(os_task_param_t task_init_data)
 		if (msg_ptr->CHARACTER >= 32 && msg_ptr->CHARACTER <= 126) {
 			printf("[ReadTask%d]: Received printable character 0x%x (%c)\n", (uint)task_init_data, msg_ptr->CHARACTER, msg_ptr->CHARACTER);
 		} else {
-			printf("[ReadTask%d]: Received unprintable character 0x%x\n", (uint)task_init_data, msg_ptr->CHARACTER, msg_ptr->CHARACTER);
+			printf("[ReadTask%d]: Received unprintable character 0x%x\n", (uint)task_init_data, msg_ptr->CHARACTER);
 		}
 		_mutex_unlock(print_mutex);
 #endif
