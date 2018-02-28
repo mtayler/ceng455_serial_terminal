@@ -89,17 +89,21 @@ void main_task(os_task_param_t task_init_data)
 	_queue_id qid = OpenW();
 
 	// Create clients to listen to individual character inputs
-	for (uint16_t i = 0; i < NUM_CLIENTS; i++) {
-	      _task_id task_id = _task_create(0, READTASK_TASK, i);
+	_task_id read_task_id = _task_create(0, READTASK_TASK, 0);
+	if (read_task_id == 0) {
+		_mutex_lock(print_mutex);
+		printf("[MainTask]: Could not create a read task\n");
+		_mutex_unlock(print_mutex);
+		_task_block();
+	}
 
-	      if (task_id == 0) {
-	    	  _mutex_lock(print_mutex);
-	         printf("[MainTask]: Could not create a read task\n");
-	         _mutex_unlock(print_mutex);
-	         _task_block();
-	      }
-	   }
-
+	_task_id read_close_task_id = _task_create(0, READCLOSETASK_TASK, 0);
+	if (read_close_task_id == 0) {
+			_mutex_lock(print_mutex);
+			printf("[MainTask]: Could not create a read task\n");
+			_mutex_unlock(print_mutex);
+			_task_block();
+	}
 	_time_delay(1000);
 
 #ifdef PEX_USE_RTOS

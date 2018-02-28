@@ -42,6 +42,7 @@
 #include "terminal.h"
 #include "TerminalHandler.h"
 #include "ReadTask.h"
+#include "ReadCloseTask.h"
 
 #ifdef __cplusplus
 extern "C" {

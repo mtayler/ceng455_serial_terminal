@@ -42,14 +42,10 @@
 #include "terminal.h"
 #include "TerminalHandler.h"
 #include "ReadTask.h"
+#include "ReadCloseTask.h"
 
 #include <message.h>
 
-// Vector for opened tasks
-typedef struct read_entry {
-	_task_id  TASK_ID;
-	_queue_id QID;
-} READ_ENTRY, * READ_ENTRY_PTR;
 
 #ifdef __cplusplus
 extern "C" {
@@ -77,6 +73,17 @@ void TerminalHandler_task(os_task_param_t task_init_data);
 ** ===================================================================
 */
 void ReadTask_task(os_task_param_t task_init_data);
+
+/*
+** ===================================================================
+**     Callback    : ReadCloseTask_task
+**     Description : Task function entry.
+**     Parameters  :
+**       task_init_data - OS task parameter
+**     Returns : Nothing
+** ===================================================================
+*/
+void ReadCloseTask_task(os_task_param_t task_init_data);
 
 /* END os_tasks */
 

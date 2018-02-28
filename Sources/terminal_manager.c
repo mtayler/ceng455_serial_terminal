@@ -7,14 +7,14 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <terminal_manager.h>
-
+#include "terminal_manager.h"
 #include "messaging.h"
 
-#define DEBUG (1)
 
+//#define DEBUG (1)
 
 // Give a unique terminal manager to each file including the terminal manager
+static vec_stream_t qids;
 static _queue_id terminal_manager_local_qid;
 static bool terminal_manager_initialized = FALSE;
 
@@ -25,6 +25,8 @@ void terminal_manager_init(void) {
 			printf("\nCould not open terminal handler mgmt message queue\n");
 			_task_block();
 		}
+
+		vec_stream_init(qids);
 		terminal_manager_initialized = TRUE;
 	}
 }
@@ -104,6 +106,24 @@ bool _putline(_queue_id qid, char line[LINE_LENGTH]) {
 }
 
 bool OpenR(_queue_id stream_no) {
+	// Add qid
+	bool contained = FALSE;
+	for (size_t i=0; i < vec_stream_size(qids); i++) {
+		if (vec_stream_get(qids, i)->TASK_ID == _task_get_id()) {
+			contained = TRUE;
+			break;
+		}
+	}
+
+	if (contained) {
+		return TRUE;
+	} else {
+		READ_ENTRY_PTR entry = malloc(sizeof(READ_ENTRY));
+		entry->TASK_ID = _task_get_id();
+		entry->QID = stream_no;
+		vec_stream_append(qids, entry);
+	}
+
 	TERMINAL_MGMT_MESSAGE_PTR msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
 	if (! msg_ptr) {
 		printf("Couldn't allocate OpenR message\n");
@@ -136,12 +156,23 @@ bool OpenR(_queue_id stream_no) {
 }
 
 bool _getline(char * line) {
+	_queue_id qid = 0;
+	for (size_t i=0; i < vec_stream_size(qids); i++) {
+		if (vec_stream_get(qids, i)->TASK_ID == _task_get_id()) {
+			qid = vec_stream_get(qids, i)->QID;
+			break;
+		}
+	}
+	if (! qid) {
+		return FALSE;
+	}
+
 	TERMINAL_MGMT_MESSAGE_PTR msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
 	if (! msg_ptr) {
 		printf("Couldn't allocate _getline message\n");
 		_task_block();
 	}
-	msg_ptr->HEADER.SOURCE_QID = terminal_manager_local_qid;
+	msg_ptr->HEADER.SOURCE_QID = qid;
 	msg_ptr->HEADER.TARGET_QID = TERMINAL_MGMT_QID;
 	msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 	msg_ptr->RQST = R_GetLine;
@@ -150,14 +181,14 @@ bool _getline(char * line) {
 	// Send initial message and wait for correct response message
 	do {
 		if (msg_ptr) { _msgq_send(msg_ptr); }
-		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_manager_local_qid, 0);  // Don't timeout (waiting for user input)
+		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(qid, 0);  // Don't timeout (waiting for user input)
 	} while (msg_ptr && msg_ptr->RQST != R_GetLine);
 
 	// Relay line if response was successful, otherwise propagate error
 	bool result = FALSE;
 	if (msg_ptr && msg_ptr->RETURN) {
 		_mutex_lock(print_mutex);
-		printf("[UserTask/_getline]: Received line \"%s\"\n", (char*)msg_ptr->DATA);
+//		printf("[UserTask/_getline]: Received line \"%s\"\n", (char*)msg_ptr->DATA);
 		_mutex_unlock(print_mutex);
 		strcpy(line, (char *)msg_ptr->DATA);
 		free(msg_ptr->DATA);
@@ -178,13 +209,24 @@ bool _getline(char * line) {
 
 
 bool Close(void) {
+	_queue_id qid = 0;
+	for (size_t i=0; i < vec_stream_size(qids); i++) {
+		if (vec_stream_get(qids, i)->TASK_ID == _task_get_id()) {
+			qid = vec_stream_get(qids, i)->QID;
+			break;
+		}
+	}
+	if (! qid) {
+		return FALSE;
+	}
+
 	TERMINAL_MGMT_MESSAGE_PTR msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
 	if (! msg_ptr) {
 		printf("Couldn't allocate Close message\n");
 		_task_block();
 	}
 
-	msg_ptr->HEADER.SOURCE_QID = terminal_manager_local_qid;
+	msg_ptr->HEADER.SOURCE_QID = qid;
 	msg_ptr->HEADER.TARGET_QID = TERMINAL_MGMT_QID;
 	msg_ptr->HEADER.SIZE = sizeof(TERMINAL_MGMT_MESSAGE);
 	msg_ptr->RQST = R_Close;
@@ -193,7 +235,7 @@ bool Close(void) {
 	// Send initial message and wait for correct response message
 	do {
 		if (msg_ptr) { _msgq_send(msg_ptr); }
-		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(terminal_manager_local_qid, MGMT_WAIT);
+		msg_ptr = (TERMINAL_MGMT_MESSAGE_PTR)_msgq_receive(qid, MGMT_WAIT);
 	} while (msg_ptr && msg_ptr->RQST != R_Close);
 	bool result = FALSE;
 	if (msg_ptr) {
@@ -205,5 +247,16 @@ bool Close(void) {
 	_mutex_unlock(print_mutex);
 #endif
 	_msg_free(msg_ptr);
-	return result;
+
+	bool deleted = FALSE;
+	if (result == TRUE) {
+		for (size_t i=0; i < vec_stream_size(qids); i++) {
+			if (vec_stream_get(qids, i)->TASK_ID == _task_get_id()) {
+				free(vec_stream_get(qids, i));
+				vec_stream_del(qids, i);
+				deleted = TRUE;
+			}
+		}
+	}
+	return result && deleted;
 }

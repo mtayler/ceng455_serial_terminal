@@ -116,6 +116,7 @@
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/.metadata/.plugins/org.eclipse.cdt.make.core/specs.c</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/Cpu.c</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/MainTask.c</PathName>
+      <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/ReadCloseTask.c</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/ReadTask.c</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/TerminalHandler.c</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/clockMan1.c</PathName>
@@ -259,13 +260,14 @@
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/main.c</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/os_tasks.c</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/rtos_main_task.c</PathName>
-      <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/terminal_handler.c</PathName>
+      <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/terminal_manager.c</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Static_Code/System/PE_low_level_init.c</PathName>
     </GeneratedCs>
     <GeneratedHs>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/Cpu.h</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/MainTask.h</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/PE_low_level_init.h</PathName>
+      <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/ReadCloseTask.h</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/ReadTask.h</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/SDK/platform/devices/MK64F12/startup/system_MK64F12.h</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Generated_Code/SDK/rtos/mqx/config/board/user_config.h</PathName>
@@ -411,7 +413,7 @@
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/os_tasks.h</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/output.h</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/rtos_main_task.h</PathName>
-      <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/terminal_handler.h</PathName>
+      <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/terminal_manager.h</PathName>
       <PathName>/Users/mtayler/Documents/ceng455/serial_terminal/Sources/vector.h</PathName>
     </GeneratedHs>
     <GeneratedASMs>

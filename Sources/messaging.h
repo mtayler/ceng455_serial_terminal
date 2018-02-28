@@ -19,6 +19,7 @@
 
 #define MGMT_WAIT (10000)
 
+
 enum REQUEST {
 	R_OpenR = 0,
 	R_GetLine,

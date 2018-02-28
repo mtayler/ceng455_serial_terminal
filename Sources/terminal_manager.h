@@ -14,6 +14,16 @@
 #include "messaging.h"
 #include "output.h"
 
+// Vector for opened tasks
+typedef struct read_entry {
+	_task_id  TASK_ID;
+	_queue_id QID;
+} READ_ENTRY, * READ_ENTRY_PTR;
+
+#define VECTOR_TYPE READ_ENTRY_PTR
+#define VECTOR_NAME stream
+#include "vector.h"
+
 #define LINE_LENGTH (100)
 
 MUTEX_STRUCT_PTR print_mutex;

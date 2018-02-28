@@ -43,6 +43,7 @@
 #include "terminal.h"
 #include "TerminalHandler.h"
 #include "ReadTask.h"
+#include "ReadCloseTask.h"
 #if CPU_INIT_CONFIG
   #include "Init_Config.h"
 #endif

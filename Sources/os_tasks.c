@@ -45,13 +45,9 @@ extern "C" {
 
 #include "output.h"
 #include "messaging.h"
-#include <terminal_manager.h>
+#include "terminal_manager.h"
 
 #define PUTLINE_TIMEOUT (1000)
-
-#define VECTOR_TYPE READ_ENTRY_PTR
-#define VECTOR_NAME stream
-#include "vector.h"
 
 /*
 ** ===================================================================
@@ -88,7 +84,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 		printf("\nCould not open terminal handler mgmt message queue\n");
 		_task_block();
 	}
-	terminal_mgmt_pool = _msgpool_create(sizeof(TERMINAL_MGMT_MESSAGE), 10, 10, 0);
+	terminal_mgmt_pool = _msgpool_create(sizeof(TERMINAL_MGMT_MESSAGE), 20, 10, 0);
 	if (! terminal_mgmt_pool) {
 		printf("\nCould not create terminal mgmt pool\n");
 		_task_block();
@@ -177,7 +173,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 				}
 				case R_Close: {
 					// Remove task from read and write access, if opened
-					if (mgmt_msg_ptr->TASK_ID == opened_write) {
+ 					if (mgmt_msg_ptr->TASK_ID == opened_write) {
 						opened_write = 0;
 					}
 					for (size_t i=0; i < vec_stream_size(read_access); i++) {
@@ -204,19 +200,6 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 		// Parse received character if any user tasks are listening
 		if (msg_ptr && vec_stream_size(read_access) > 0) {
  			char message = *(msg_ptr->DATA);
-			// Forward message to all reading tasks
-			for (size_t i=0; i < vec_stream_size(read_access); i++) {
-				RECEIVED_CHAR_MESSAGE_PTR rl = (RECEIVED_CHAR_MESSAGE_PTR)_msg_alloc(terminal_mgmt_pool);
-				if (rl) {
-					rl->HEADER.TARGET_QID = vec_stream_get(read_access, i)->QID;
-					rl->HEADER.SOURCE_QID = terminal_handler_qid;
-					rl->HEADER.SIZE = sizeof(RECEIVED_CHAR_MESSAGE);
-					rl->CHARACTER = message;
-					_msgq_send(rl);
-				} else {
-					printf("Couldn't allocate RECEIVED_CHAR_MESSAGE\n");
-				}
-			}
 
 			/* Handle input */
 			if (message >= 32 && message <= 126) { // printable characters
@@ -288,10 +271,9 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 void ReadTask_task(os_task_param_t task_init_data)
 {
 	/* Write your local variable definition here */
-	RECEIVED_CHAR_MESSAGE_PTR msg_ptr;
 	_queue_id                 client_qid;
 
-	client_qid  = _msgq_open((_queue_number)(CLIENT_BASE_QID + _task_get_parameter()), 0);
+	client_qid  = _msgq_open((_queue_number)(CLIENT_BASE_QID), 0);
 
 	terminal_manager_init();
 
@@ -304,29 +286,65 @@ void ReadTask_task(os_task_param_t task_init_data)
 
 	OpenR(client_qid);
 
+	char string[100];
+
 #ifdef PEX_USE_RTOS
 	while (1) {
 #endif
-		msg_ptr = (RECEIVED_CHAR_MESSAGE_PTR)_msgq_receive(client_qid, 0);
-
-		if (msg_ptr == NULL) {
-			printf("\nCould not receive a message\n");
-			_task_block();
+		if (_getline(string)) {
+			_mutex_lock(print_mutex);
+			printf("[ReadTask]: Received line: \"%s\"\n", string);
+			_mutex_unlock(print_mutex);
 		}
-
-#ifndef DEBUG
-		_mutex_lock(print_mutex);
-		if (msg_ptr->CHARACTER >= 32 && msg_ptr->CHARACTER <= 126) {
-			printf("[ReadTask%d]: Received printable character 0x%x (%c)\n", (uint)task_init_data, msg_ptr->CHARACTER, msg_ptr->CHARACTER);
-		} else {
-			printf("[ReadTask%d]: Received unprintable character 0x%x\n", (uint)task_init_data, msg_ptr->CHARACTER);
-		}
-		_mutex_unlock(print_mutex);
-#endif
-
-		_msg_free(msg_ptr);
 #ifdef PEX_USE_RTOS   
 	}
+#endif    
+}
+
+/*
+** ===================================================================
+**     Callback    : ReadCloseTask_task
+**     Description : Task function entry.
+**     Parameters  :
+**       task_init_data - OS task parameter
+**     Returns : Nothing
+** ===================================================================
+*/
+void ReadCloseTask_task(os_task_param_t task_init_data)
+{
+	/* Write your local variable definition here */
+	_queue_id                 client_qid;
+	uint8_t                   counter = 0;
+
+	client_qid  = _msgq_open((_queue_number)(CLIENT_BASE_QID + 1), 0);
+
+	terminal_manager_init();
+
+	if (client_qid == 0) {
+		_mutex_lock(print_mutex);
+		printf("\nCould not open a client message queue\n");
+		_mutex_unlock(print_mutex);
+		_task_block();
+	}
+
+	OpenR(client_qid);
+
+	char string[100];
+
+#ifdef PEX_USE_RTOS
+	while (1) {
+#endif
+		if (counter++ < 5) {
+			if (_getline(string)) {
+				_mutex_lock(print_mutex);
+				printf("[ReadCloseTask]: Received line: \"%s\"\n", string);
+				_mutex_unlock(print_mutex);
+			}
+		} else {
+			Close();
+		}
+#ifdef PEX_USE_RTOS   
+  }
 #endif    
 }
 
