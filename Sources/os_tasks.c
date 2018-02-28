@@ -238,6 +238,7 @@ void TerminalHandler_task(os_task_param_t task_init_data)
 						char* line = malloc(sizeof(char[LINE_LENGTH])); // make new string to send address in message
 						strcpy(line, output_buffer->buffer);
 						line_msg_ptr->DATA = line;
+						line_msg_ptr->RETURN = TRUE;
 						_msgq_send(line_msg_ptr);
 					} else {
 						printf("Couldn't allocate TERMINAL_MGMT_MESSAGE\n");
